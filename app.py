@@ -2,9 +2,6 @@ import os
 import requests
 from fastapi import FastAPI, Request
 from datetime import datetime
-from dotenv import load_dotenv
-
-load_dotenv()
 
 app = FastAPI()
 
