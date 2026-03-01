@@ -27,16 +27,8 @@ def send_message(chat_id, text):
         "chat_id": chat_id,
         "text": text
     }
-    requests.post(url, json=payload)
 
-def send_air_quality(chat_id, city):
-    url = f"https://api.waqi.info/feed/{city}/?token={WAQI_TOKEN}"
-    response = requests.get(url).json()
+    response = requests.post(url, json=payload)
 
-    if response.get("status") == "ok":
-        aqi = response["data"]["aqi"]
-        message = f"🌎 Calidad del aire en {city}:\nAQI: {aqi}"
-    else:
-        message = "❌ No encontré datos para esa ciudad."
-
-    send_message(chat_id, message)
+    print("SEND MESSAGE STATUS:", response.status_code)
+    print("SEND MESSAGE RESPONSE:", response.text)
