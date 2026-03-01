@@ -30,5 +30,5 @@ def send_message(chat_id, text):
 
     response = requests.post(url, json=payload)
 
-    print("SEND MESSAGE STATUS:", response.status_code)
-    print("SEND MESSAGE RESPONSE:", response.text)
+    print("=== TELEGRAM RESPONSE STATUS ===", response.status_code)
+    print("=== TELEGRAM RESPONSE BODY ===", response.text)
