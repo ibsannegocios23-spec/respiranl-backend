@@ -18,7 +18,12 @@ async def webhook(request: Request):
 
     if "message" in data:
         chat_id = data["message"]["chat"]["id"]
-        send_message(chat_id, "Recibí tu mensaje 👀")
+        text = data["message"].get("text", "")
+
+        if text.lower() == "hola":
+            send_message(chat_id, "Hola 👋 Soy RespiraNL Bot. Escribe el nombre de tu ciudad.")
+        else:
+            send_air_quality(chat_id, text)
 
     return {"ok": True}
 def send_message(chat_id, text):
