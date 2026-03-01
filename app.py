@@ -14,18 +14,13 @@ def home():
 @app.post("/webhook")
 async def webhook(request: Request):
     data = await request.json()
+    print("TELEGRAM DATA:", data)
 
     if "message" in data:
         chat_id = data["message"]["chat"]["id"]
-        text = data["message"].get("text", "")
-
-        if text.lower() == "hola":
-            send_message(chat_id, "Hola 👋 Soy RespiraNL Bot. Escribe el nombre de tu ciudad.")
-        else:
-            send_air_quality(chat_id, text)
+        send_message(chat_id, "Recibí tu mensaje 👀")
 
     return {"ok": True}
-
 def send_message(chat_id, text):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     payload = {
