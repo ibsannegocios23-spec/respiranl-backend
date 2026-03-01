@@ -43,18 +43,18 @@ def get_air_quality(chat_id, city):
         aqi = data.get("aqi")
         city_name = data["city"]["name"]
 
-        message = f"🌎 Calidad del aire en {city_name}\nAQI: {aqi}"
+        message = f"🌎 Calidad del aire en {city_name}\nAQI: {aqi}\n"
 
         if aqi <= 50:
-            message += "\n🟢 Buena"
+            message += "🟢 Buena\n\n✅ Ideal para actividades al aire libre."
         elif aqi <= 100:
-            message += "\n🟡 Moderada"
+            message += "🟡 Moderada\n\n⚠️ Personas sensibles deben limitar exposición prolongada."
         elif aqi <= 150:
-            message += "\n🟠 Dañina para sensibles"
+            message += "🟠 Dañina para grupos sensibles\n\n😷 Niños, adultos mayores y personas con asma deben evitar actividad intensa."
         elif aqi <= 200:
-            message += "\n🔴 Dañina"
+            message += "🔴 Dañina\n\n🚨 Evita actividades al aire libre."
         else:
-            message += "\n🟣 Muy dañina"
+            message += "🟣 Muy dañina\n\n☠️ Permanece en interiores y usa protección."
 
     else:
         message = "❌ No encontré datos para esa ciudad."
