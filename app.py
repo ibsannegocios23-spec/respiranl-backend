@@ -38,13 +38,8 @@ def get_air_quality(chat_id, city):
     response = requests.get(url).json()
 
     if response.get("status") == "ok":
-        data = response.get("data", {})
+        data = response["data"]
         aqi = data.get("aqi")
-
-        if not isinstance(aqi, int):
-            send_message(chat_id, "⚠️ No pude obtener el AQI correctamente.")
-            return
-
         city_name = data["city"]["name"]
 
         message = f"🌎 Calidad del aire en {city_name}\nAQI: {aqi}\n\n"
@@ -54,13 +49,17 @@ def get_air_quality(chat_id, city):
         elif aqi <= 100:
             message += "🟡 Moderada\nPersonas sensibles deben limitar exposición prolongada."
         elif aqi <= 150:
-            message += "🟠 Dañina para grupos sensibles\nNiños y adultos mayores deben evitar actividad intensa."
+            message += "🟠 Dañina para grupos sensibles."
         elif aqi <= 200:
-            message += "🔴 Dañina\nEvita actividades al aire libre."
+            message += "🔴 Dañina."
         else:
-            message += "🟣 Muy dañina\nPermanece en interiores."
+            message += "🟣 Muy dañina."
 
     else:
-        message = "❌ No encontré datos para esa ciudad."
+        message = (
+            f"⚠️ No existe una estación oficial de monitoreo en '{city}'.\n\n"
+            "Actualmente solo puedo mostrar datos donde hay sensores registrados.\n"
+            "Intenta con una ciudad cercana como Monterrey, San Pedro o Santa catarina."
+        )
 
     send_message(chat_id, message)
