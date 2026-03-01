@@ -1,99 +1,116 @@
-from fastapi import FastAPI, Request
-import requests
 import os
+import requests
+from fastapi import FastAPI, Request
+from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI()
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 WAQI_TOKEN = os.getenv("WAQI_TOKEN")
 
-CITY_ALIASES = {
-    "san nicolas": "monterrey",
-    "san nicolas de los garza": "monterrey",
-    "guadalupe": "monterrey",
-    "guadalupe nuevo leon": "monterrey",
-    "juarez": "monterrey",
-    "juarez nuevo leon": "monterrey",
-    "escobedo": "monterrey",
-    "santa catarina": "santa catarina",
-    "san pedro": "san pedro",
-    "monterrey": "monterrey"
+TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+
+ALIAS_MUNICIPIOS = {
+    "santa": "Santa Catarina",
+    "sanico": "San Nicolás",
+    "sn": "San Nicolás",
+    "escobedo": "General Escobedo",
+    "guadalupe": "Guadalupe",
+    "apodaca": "Apodaca",
+    "monterrey": "Monterrey",
+    "garcia": "García",
+    "juarez": "Juárez"
 }
 
+def clasificar_aqi(aqi: int):
+    if aqi <= 50:
+        return "Bueno", "Sin riesgo para la población general.", \
+               "Puedes realizar actividades al aire libre con normalidad."
+    elif aqi <= 100:
+        return "Moderado", "Personas sensibles podrían presentar molestias leves.", \
+               "Si tienes asma o alergias, modera actividad intensa."
+    elif aqi <= 150:
+        return "No saludable para sensibles", "Niños, adultos mayores y personas con asma deben limitar actividad exterior.", \
+               "Evita ejercicio al aire libre."
+    elif aqi <= 200:
+        return "No saludable", "Riesgo para toda la población.", \
+               "Reduce exposición prolongada al exterior."
+    elif aqi <= 300:
+        return "Muy no saludable", "Alto riesgo respiratorio.", \
+               "Evita salir si no es necesario."
+    else:
+        return "Peligroso", "Emergencia sanitaria.", \
+               "Permanece en interiores y usa protección respiratoria."
 
-@app.get("/")
-def home():
-    return {"status": "Bot running"}
+def build_response(municipio, aqi, categoria, riesgo, recomendacion):
+    hora = datetime.now().strftime("%I:%M %p")
 
+    mensaje = f"""
+🌬️ *RESPIRA NL | Calidad del Aire*
 
-@app.post("/webhook")
-async def webhook(request: Request):
-    data = await request.json()
+📍 *Municipio:* {municipio}
+📊 *AQI actual:* {aqi} ({categoria})
 
-    if "message" in data:
-        chat_id = data["message"]["chat"]["id"]
-        text = data["message"].get("text", "").strip()
-        text_lower = text.lower()
+🫁 *Riesgo:* {riesgo}
 
-        if text_lower == "/start" or text_lower == "hola":
-            send_message(
-                chat_id,
-                "Hola 👋 Soy RespiraNL Bot.\n\n"
-                "Escribe una ciudad de Nuevo León para consultar su calidad del aire.\n\n"
-            )
-        else:
-            get_air_quality(chat_id, text)
+🔎 *Recomendación:*
+{recomendacion}
 
-    return {"ok": True}
+🕒 Actualizado: {hora}
+Fuente: WAQI
+"""
+    return mensaje
 
+def consultar_waqi(ciudad: str):
+    url = f"https://api.waqi.info/feed/{ciudad}/?token={WAQI_TOKEN}"
+    response = requests.get(url)
+    data = response.json()
 
-def send_message(chat_id, text):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    if data["status"] != "ok":
+        return None
+
+    aqi = data["data"]["aqi"]
+    return aqi
+
+def enviar_mensaje(chat_id, texto):
     payload = {
         "chat_id": chat_id,
-        "text": text
+        "text": texto,
+        "parse_mode": "Markdown"
     }
-    requests.post(url, json=payload)
+    requests.post(TELEGRAM_API_URL, json=payload)
 
+@app.post("/webhook")
+async def webhook(req: Request):
+    body = await req.json()
 
-def get_air_quality(chat_id, city):
+    if "message" not in body:
+        return {"ok": True}
 
-    original_city = city
-    city = city.lower().strip()
-    city = CITY_ALIASES.get(city, city)
+    message = body["message"]
+    chat_id = message["chat"]["id"]
+    texto_usuario = message.get("text", "").lower().strip()
 
-    url = f"https://api.waqi.info/feed/{city}/?token={WAQI_TOKEN}"
-    response = requests.get(url).json()
+    if texto_usuario in ["/start", "hola"]:
+        enviar_mensaje(chat_id,
+                       "🌬️ Bienvenido a *RespiraNL*.\n\nEscribe el nombre de un municipio de Nuevo León para conocer su calidad del aire.")
+        return {"ok": True}
 
-    if response.get("status") == "ok":
-        data = response["data"]
-        aqi = data.get("aqi")
-        station_name = data["city"]["name"]
+    municipio = ALIAS_MUNICIPIOS.get(texto_usuario, texto_usuario.title())
 
-        message = "🌎 Calidad del aire\n"
-        message += f"Consulta solicitada: {original_city}\n"
-        message += f"Estación utilizada: {station_name}\n"
-        message += f"AQI: {aqi}\n\n"
+    aqi = consultar_waqi(municipio)
 
-        if isinstance(aqi, int):
-            if aqi <= 50:
-                message += "🟢 Buena\nIdeal para actividades al aire libre."
-            elif aqi <= 100:
-                message += "🟡 Moderada\nPersonas sensibles deben limitar exposición prolongada."
-            elif aqi <= 150:
-                message += "🟠 Dañina para grupos sensibles."
-            elif aqi <= 200:
-                message += "🔴 Dañina."
-            else:
-                message += "🟣 Muy dañina."
-        else:
-            message += "⚠️ No se pudo interpretar el índice AQI."
+    if not aqi:
+        enviar_mensaje(chat_id,
+                       "⚠️ No se encontró estación activa para ese municipio.\nIntenta con otro nombre.")
+        return {"ok": True}
 
-    else:
-        message = (
-            f"⚠️ No existe una estación oficial de monitoreo en '{original_city}'.\n\n"
-            "Actualmente solo puedo mostrar datos donde hay sensores registrados.\n"
-            "Intenta con Monterrey, San Pedro o Santa Catarina."
-        )
+    categoria, riesgo, recomendacion = clasificar_aqi(aqi)
+    mensaje_final = build_response(municipio, aqi, categoria, riesgo, recomendacion)
 
-    send_message(chat_id, message)
+    enviar_mensaje(chat_id, mensaje_final)
+
+    return {"ok": True}
