@@ -20,9 +20,11 @@ CITY_ALIASES = {
     "monterrey": "monterrey"
 }
 
+
 @app.get("/")
 def home():
     return {"status": "Bot running"}
+
 
 @app.post("/webhook")
 async def webhook(request: Request):
@@ -31,11 +33,13 @@ async def webhook(request: Request):
     if "message" in data:
         chat_id = data["message"]["chat"]["id"]
         text = data["message"].get("text", "").strip()
+        text_lower = text.lower()
 
-        if text.lower() == "hola":
+        if text_lower == "/start" or text_lower == "hola":
             send_message(
                 chat_id,
-                "Hola 👋 Soy RespiraNL Bot.\nEscribe una ciudad de Nuevo León para consultar su calidad del aire."
+                "Hola 👋 Soy RespiraNL Bot.\n\n"
+                "Escribe una ciudad de Nuevo León para consultar su calidad del aire.\n\n"
             )
         else:
             get_air_quality(chat_id, text)
@@ -56,7 +60,6 @@ def get_air_quality(chat_id, city):
 
     original_city = city
     city = city.lower().strip()
-
     city = CITY_ALIASES.get(city, city)
 
     url = f"https://api.waqi.info/feed/{city}/?token={WAQI_TOKEN}"
@@ -67,7 +70,7 @@ def get_air_quality(chat_id, city):
         aqi = data.get("aqi")
         station_name = data["city"]["name"]
 
-        message = f"🌎 Calidad del aire\n"
+        message = "🌎 Calidad del aire\n"
         message += f"Consulta solicitada: {original_city}\n"
         message += f"Estación utilizada: {station_name}\n"
         message += f"AQI: {aqi}\n\n"
