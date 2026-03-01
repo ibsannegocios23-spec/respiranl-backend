@@ -5,6 +5,7 @@ import os
 app = FastAPI()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+WAQI_TOKEN = os.getenv("WAQI_TOKEN")
 
 @app.get("/")
 def home():
@@ -19,9 +20,9 @@ async def webhook(request: Request):
         text = data["message"].get("text", "")
 
         if text.lower() == "hola":
-            send_message(chat_id, "Hola 👋 Soy RespiraNL Bot.")
+            send_message(chat_id, "Hola 👋 Soy RespiraNL Bot.\nEscribe una ciudad para consultar su calidad del aire.")
         else:
-            send_message(chat_id, f"Escribiste: {text}")
+            get_air_quality(chat_id, text)
 
     return {"ok": True}
 
@@ -32,3 +33,30 @@ def send_message(chat_id, text):
         "text": text
     }
     requests.post(url, json=payload)
+
+def get_air_quality(chat_id, city):
+    url = f"https://api.waqi.info/feed/{city}/?token={WAQI_TOKEN}"
+    response = requests.get(url).json()
+
+    if response.get("status") == "ok":
+        data = response["data"]
+        aqi = data.get("aqi")
+        city_name = data["city"]["name"]
+
+        message = f"🌎 Calidad del aire en {city_name}\nAQI: {aqi}"
+
+        if aqi <= 50:
+            message += "\n🟢 Buena"
+        elif aqi <= 100:
+            message += "\n🟡 Moderada"
+        elif aqi <= 150:
+            message += "\n🟠 Dañina para sensibles"
+        elif aqi <= 200:
+            message += "\n🔴 Dañina"
+        else:
+            message += "\n🟣 Muy dañina"
+
+    else:
+        message = "❌ No encontré datos para esa ciudad."
+
+    send_message(chat_id, message)
