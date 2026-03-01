@@ -26,14 +26,14 @@ async def webhook(request: Request):
             send_air_quality(chat_id, text)
 
     return {"ok": True}
-def send_message(chat_id, text):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": text
-    }
+def send_air_quality(chat_id, city):
+    url = f"https://api.waqi.info/feed/{city}/?token={WAQI_TOKEN}"
+    response = requests.get(url).json()
 
-    response = requests.post(url, json=payload)
+    if response.get("status") == "ok":
+        aqi = response["data"]["aqi"]
+        message = f"🌎 Calidad del aire en {city}:\nAQI: {aqi}"
+    else:
+        message = "❌ No encontré datos para esa ciudad."
 
-    print("=== TELEGRAM RESPONSE STATUS ===", response.status_code)
-    print("=== TELEGRAM RESPONSE BODY ===", response.text)
+    send_message(chat_id, message)
