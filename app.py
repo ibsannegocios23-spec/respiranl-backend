@@ -33,28 +33,32 @@ def send_message(chat_id, text):
         "text": text
     }
     requests.post(url, json=payload)
-
 def get_air_quality(chat_id, city):
     url = f"https://api.waqi.info/feed/{city}/?token={WAQI_TOKEN}"
     response = requests.get(url).json()
 
     if response.get("status") == "ok":
-        data = response["data"]
+        data = response.get("data", {})
         aqi = data.get("aqi")
+
+        if not isinstance(aqi, int):
+            send_message(chat_id, "⚠️ No pude obtener el AQI correctamente.")
+            return
+
         city_name = data["city"]["name"]
 
-        message = f"🌎 Calidad del aire en {city_name}\nAQI: {aqi}\n"
+        message = f"🌎 Calidad del aire en {city_name}\nAQI: {aqi}\n\n"
 
         if aqi <= 50:
-            message += "🟢 Buena\n\n✅ Ideal para actividades al aire libre."
+            message += "🟢 Buena\nIdeal para actividades al aire libre."
         elif aqi <= 100:
-            message += "🟡 Moderada\n\n⚠️ Personas sensibles deben limitar exposición prolongada."
+            message += "🟡 Moderada\nPersonas sensibles deben limitar exposición prolongada."
         elif aqi <= 150:
-            message += "🟠 Dañina para grupos sensibles\n\n😷 Niños, adultos mayores y personas con asma deben evitar actividad intensa."
+            message += "🟠 Dañina para grupos sensibles\nNiños y adultos mayores deben evitar actividad intensa."
         elif aqi <= 200:
-            message += "🔴 Dañina\n\n🚨 Evita actividades al aire libre."
+            message += "🔴 Dañina\nEvita actividades al aire libre."
         else:
-            message += "🟣 Muy dañina\n\n☠️ Permanece en interiores y usa protección."
+            message += "🟣 Muy dañina\nPermanece en interiores."
 
     else:
         message = "❌ No encontré datos para esa ciudad."
