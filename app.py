@@ -76,7 +76,8 @@ def enviar_mensaje(chat_id, texto):
     payload = {
         "chat_id": chat_id,
         "text": texto,
-        "parse_mode": "Markdown"
+        "parse_mode": none
+        
     }
     requests.post(TELEGRAM_API_URL, json=payload)
 
