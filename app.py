@@ -2,7 +2,7 @@ import os
 import requests
 from fastapi import FastAPI, Request
 from datetime import datetime
-from zoneinfo import ZoneInfo  # Para zona horaria correcta
+from zoneinfo import ZoneInfo
 
 app = FastAPI()
 
@@ -25,7 +25,6 @@ def enviar_mensaje(chat_id, texto):
 
     response = requests.post(url, json=payload)
 
-    # Logs útiles para monitoreo
     print("Telegram status:", response.status_code)
     print("Telegram response:", response.text)
 
@@ -44,8 +43,53 @@ def consultar_waqi(ciudad):
 
     return aqi, contaminante
 
+def clasificar_aqi(aqi):
+
+    if aqi <= 50:
+        return (
+            "🟢 Bueno",
+            "Sin riesgo para la población general.",
+            "Actividades al aire libre seguras."
+        )
+
+    elif aqi <= 100:
+        return (
+            "🟡 Moderado",
+            "Personas sensibles pueden presentar molestias leves.",
+            "Si tienes asma o alergias, limita ejercicio intenso."
+        )
+
+    elif aqi <= 150:
+        return (
+            "🟠 No saludable para sensibles",
+            "Niños, adultos mayores y personas con enfermedades respiratorias deben limitar exposición.",
+            "Evita ejercicio al aire libre."
+        )
+
+    elif aqi <= 200:
+        return (
+            "🔴 No saludable",
+            "Toda la población puede comenzar a experimentar efectos adversos.",
+            "Reduce actividades prolongadas en exteriores."
+        )
+
+    elif aqi <= 300:
+        return (
+            "🟣 Muy no saludable",
+            "Alto riesgo respiratorio para toda la población.",
+            "Evita salir si no es necesario."
+        )
+
+    else:
+        return (
+            "⚫ Peligroso",
+            "Emergencia sanitaria.",
+            "Permanece en interiores y usa protección respiratoria."
+        )
+
 @app.post("/webhook")
 async def webhook(req: Request):
+
     body = await req.json()
     print("BODY:", body)
 
@@ -73,22 +117,41 @@ async def webhook(req: Request):
     if not resultado:
         enviar_mensaje(
             chat_id,
-            "⚠️ No se encontró estación activa para ese municipio."
+            "⚠️ No se encontró estación activa para ese municipio.\nVerifica el nombre e intenta nuevamente."
         )
         return {"ok": True}
 
     aqi, contaminante = resultado
+
+    if aqi is None:
+        enviar_mensaje(
+            chat_id,
+            "⚠️ No se pudo obtener el AQI en este momento."
+        )
+        return {"ok": True}
+
+    categoria, riesgo, recomendacion = clasificar_aqi(aqi)
 
     hora_local = datetime.now(
         ZoneInfo("America/Monterrey")
     ).strftime("%H:%M")
 
     mensaje = f"""
-🌬️ RESPIRA NL
+🌬️ RESPIRA NL | Calidad del Aire
 
 📍 Municipio: {texto.title()}
+
 📊 AQI: {aqi}
+{categoria}
+
 🧪 Contaminante dominante: {contaminante}
+
+🫁 Riesgo:
+{riesgo}
+
+🔎 Recomendación:
+{recomendacion}
+
 🕒 {hora_local}
 """
 
