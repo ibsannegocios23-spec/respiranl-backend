@@ -2,6 +2,7 @@ import os
 import requests
 from fastapi import FastAPI, Request
 from datetime import datetime
+from zoneinfo import ZoneInfo  # Para zona horaria correcta
 
 app = FastAPI()
 
@@ -9,10 +10,10 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 WAQI_TOKEN = os.getenv("WAQI_TOKEN")
 
 if not TELEGRAM_TOKEN:
-    raise ValueError("TELEGRAM_TOKEN no está definido.")
+    raise ValueError("TELEGRAM_TOKEN no está definido en Render.")
 
 if not WAQI_TOKEN:
-    raise ValueError("WAQI_TOKEN no está definido.")
+    raise ValueError("WAQI_TOKEN no está definido en Render.")
 
 def enviar_mensaje(chat_id, texto):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -23,7 +24,10 @@ def enviar_mensaje(chat_id, texto):
     }
 
     response = requests.post(url, json=payload)
-    print("Telegram:", response.status_code, response.text)
+
+    # Logs útiles para monitoreo
+    print("Telegram status:", response.status_code)
+    print("Telegram response:", response.text)
 
 def consultar_waqi(ciudad):
     url = f"https://api.waqi.info/feed/{ciudad}/?token={WAQI_TOKEN}"
@@ -60,7 +64,7 @@ async def webhook(req: Request):
     if texto_lower in ["/start", "hola"]:
         enviar_mensaje(
             chat_id,
-            "🌬️ Bienvenido a RespiraNL.\n\nEscribe un municipio de Nuevo León."
+            "🌬️ Bienvenido a RespiraNL.\n\nEscribe un municipio de Nuevo León para conocer su calidad del aire."
         )
         return {"ok": True}
 
@@ -75,13 +79,17 @@ async def webhook(req: Request):
 
     aqi, contaminante = resultado
 
+    hora_local = datetime.now(
+        ZoneInfo("America/Monterrey")
+    ).strftime("%H:%M")
+
     mensaje = f"""
 🌬️ RESPIRA NL
 
 📍 Municipio: {texto.title()}
 📊 AQI: {aqi}
 🧪 Contaminante dominante: {contaminante}
-🕒 {datetime.now().strftime("%I:%M %p")}
+🕒 {hora_local}
 """
 
     enviar_mensaje(chat_id, mensaje.strip())
